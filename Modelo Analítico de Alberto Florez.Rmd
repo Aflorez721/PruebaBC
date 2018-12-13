@@ -1,0 +1,261 @@
+---
+title: "Prueba BC DIC-2018"
+author: "Alberto Florez Peña"
+date: "12 de diciembre de 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Librerias
+
+A continuación se listan las librerias a emplear para el análisis de los daos y la construcción del modelo.
+
+```{r, message=FALSE}
+library(tidyverse) ## ggplot2, dplyr, readr, tibble, purr
+library(h2o)       ## Algoritmos combinados Machine Learning y Big Data.
+library(PerformanceAnalytics) ## Rendimiento y análisis de riesgo
+```
+
+## Empleando H2O
+
+### Iniciando H2O
+
+Parta el ajuste del modelo, se empleará una combinación de R y la tecnología H2O. $H_{2}O$ es un producto creado por la compañia [H2O.ai](https://www.h2o.ai/) con el objetivo de combinar los principales algoritmos de *machine learning* y aprendizaje estadístico con el *Big Data*.
+
+```{r, message=FALSE}
+##inicializando H2O
+h2o.init(ip = "localhost",  
+         # -1 indica que se empleen todos los cores disponibles. 
+         nthreads = -1, 
+        # Máxima memoria disponible para el cluster.
+        max_mem_size = "4g")
+h2o.no_progress()  # Turn off progress bars for notebook readability
+```
+
+
+### Lectura de los datos
+
+```{r}
+# Path data file
+data_path <- "C:/Users/aflorezp/Documents/Prueba BC 2018/procesodeseleccionanalistaiipruebaanaltica/Base_entrenamiento.csv"
+
+# Load data train into H2O
+df.train <- h2o.importFile(data_path)
+```
+
+### Descripción de los datos
+
+```{r}
+# Dimensiones del set de datos 
+h2o.dim(df.train)
+```
+
+
+
+```{r}
+## Nombres de las variables
+h2o.colnames(df.train)
+```
+
+
+La variable respuesta es *"y_auto_cura"*.
+
+El principal modelo lineal empleado para clasificaciones binarias es la regresión logística, que es el resultado de emplear, en un modelo lineal generalizado, la función logit como link.
+
+```{r}
+# Se comprueba que la variable respuesta es de tipo factor.
+df.train[,"y_auto_cura"]<- as.factor(df.train[,"y_auto_cura"])
+```
+
+
+```{r}
+h2o.describe(df.train)
+```
+
+
+### Análisis Exploratorio de datos
+
+```{r}
+h2o.table(df.train[,c("y_auto_cura")])
+```
+
+## Modelos de clasificación
+
+```{r}
+# Se define la variable respuesta en (Y) y los predictores en (X).
+y <- "y_auto_cura"
+## Se excluyen Y y llave de los datos.
+x <- setdiff(names(df.train), c(y,"llave"))
+```
+
+
+
+
+
+### Modelo 1: Regresión logistica
+
+
+```{r}
+# Ajuste del modelo y validación mediente 5-CV para estimar su error. 
+
+modelo_binomial <- h2o.glm(
+                    y = y, 
+                    x = x, 
+                    training_frame = df.train,                         
+                    family = "binomial", 
+                    link = "logit", 
+                    standardize = TRUE, 
+                     # Se le pide píde al modelo balancear clases
+                    balance_classes = TRUE,
+                    # Se le pide ignorar columnas con varianza cero (0)
+                    ignore_const_cols = TRUE, 
+                    # Se especifica que hacer con observaciones incompletas
+                    missing_values_handling = "Skip", 
+                    # Se hace una búsqueda del hiperparámetro lamba. 
+                    lambda_search = TRUE, 
+                    # Selección automática del solver adecuado. 
+                    solver = "AUTO", alpha = 0.95,
+                    # Validación cruzada de 5 folds para estimar el error 
+                    # del modelo. 
+                    seed = 21, ## Semilla aleatoria
+                    nfolds = 5, ## Número de validaciones cruzadas
+                    # Reparto estratificado de las observaciones en la creación 
+                    # de las particiones. 
+                    fold_assignment = "Stratified",
+                    keep_cross_validation_predictions = FALSE, 
+                    model_id = "modelo_binomial" ) 
+modelo_binomial
+```
+
+
+```{r}
+# Coeficientes de correlación de cada uno de los predictores del modelo.
+modelo_binomial@model$coefficients_table
+```
+
+#### Predictores incluidos en este modelo
+
+```{r}
+# Predictores incluidos.
+names(modelo_binomial@model$coefficients[modelo_binomial@model$coefficients != 0])
+```
+
+#### Importancia de los predictores
+
+
+```{r}
+coeficientes <- as.data.frame(modelo_binomial@model$coefficients_table) 
+# Se excluye el intercept. 
+coeficientes <- coeficientes %>% filter(names != "Intercept") 
+# Se calcula el valor absoluto. 
+coeficientes <- coeficientes %>% mutate(abs_stand_coef = abs(standardized_coefficients)) 
+# Se añade una variable con el signo del coeficiente. 
+coeficientes <- coeficientes %>% mutate(signo = if_else(standardized_coefficients > 0, "Positivo", "Negativo")) 
+# Se grafican los coeficien en orden descendientes de importancia.
+ggplot(data = coeficientes, aes(x = reorder(names, abs_stand_coef), y = abs_stand_coef, fill = signo)) + geom_col() + coord_flip() + labs(title = "Importancia de los predictores en el modelo GLM", x = "Predictor", y = "Valor absoluto coeficiente estandarizado") + theme_bw() + theme(legend.position = "bottom")
+```
+
+### Metricas del entrenamiento del modelo
+
+```{r}
+h2o.performance(model = modelo_binomial, train = TRUE)
+```
+
+## Métricas de validación y validación cruzada
+
+```{r}
+h2o.performance(model = modelo_binomial, xval = TRUE)
+```
+
+## Modelo 2: Modelo GLM con Grid search
+
+
+```{r}
+# Valores de alpha que se van a comparar. 
+hiperparametros <- list(alpha = c(0, 0.1, 0.5, 0.95, 1)) 
+grid_glm <- h2o.grid( # Algoritmo y parámetros.
+                      algorithm = "glm", 
+                      family = "binomial", 
+                      link = "logit", 
+                      # Variable respuesta y predictores. 
+                      y = y, 
+                      x = x, 
+                      # Datos de entrenamiento. 
+                      training_frame = df.train, 
+                      # Preprocesado. 
+                      standardize = TRUE, 
+                      missing_values_handling = "Skip",
+                      ignore_const_cols = TRUE, 
+                      # Hiperparámetros. 
+                      hyper_params = hiperparametros, 
+                      # Tipo de búsqueda. 
+                      search_criteria = list(strategy = "Cartesian"), 
+                      lambda_search = TRUE, 
+                      # Selección automática del solver adecuado. 
+                      solver = "AUTO", 
+                      # Estrategia de validación para seleccionar el mejor modelo.
+                      seed = 21, 
+                      nfolds = 10, 
+                      # Reparto estratificado de las observaciones en la creación 
+                      # de las particiones. 
+                      fold_assignment = "Stratified",
+                      keep_cross_validation_predictions = FALSE,
+                      grid_id = "grid_glm") 
+# Se muestran los modelos ordenados de mayor a menor AUC. 
+resultados_grid <- h2o.getGrid(grid_id = "grid_glm", sort_by = "auc", decreasing = TRUE)
+print(resultados_grid)
+```
+
+
+
+## Modelo de ensamble: AutoML
+
+```{r}
+aml <- h2o.automl(y = y, x = x,
+                  training_frame = df.train,
+                  max_models = 10,
+                  seed = 721)
+```
+
+### Leaderboard
+
+
+```{r}
+lb <- aml@leaderboard
+```
+
+
+```{r}
+print(lb)
+```
+
+### Exploración de ensamble
+
+```{r}
+# Get model ids for all models in the AutoML Leaderboard
+model_ids <- as.data.frame(aml@leaderboard$model_id)[,1]
+# Get the "All Models" Stacked Ensemble model
+se <- h2o.getModel(grep("StackedEnsemble_AllModels", model_ids, value = TRUE)[1])
+# Get the Stacked Ensemble metalearner model
+metalearner <- h2o.getModel(se@model$metalearner$name)
+```
+
+```{r}
+h2o.varimp(metalearner)
+```
+
+```{r}
+h2o.varimp_plot(metalearner)
+```
+
+```{r}
+h2o.confusionMatrix(metalearner)
+```
+
+
+Referencias
+
+<http://docs.h2o.ai/h2o/latest-stable/h2o-docs/data-science/stacked-ensembles.html>
