@@ -1,6 +1,6 @@
 ---
-title: "Prueba BC DIC-2018"
-author: "Alberto Florez PeÒa"
+title: "Prueba DIC-2018"
+author: "Alberto Florez Pe√±a"
 date: "12 de diciembre de 2018"
 output: html_document
 ---
@@ -11,26 +11,26 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Librerias
 
-A continuaciÛn se listan las librerias a emplear para el an·lisis de los daos y la construcciÛn del modelo.
+A continuaci√≥n se listan las librerias a emplear para el an√°lisis de los datos y la construcci√≥n del modelo.
 
 ```{r, message=FALSE}
 library(tidyverse) ## ggplot2, dplyr, readr, tibble, purr
 library(h2o)       ## Algoritmos combinados Machine Learning y Big Data.
-library(PerformanceAnalytics) ## Rendimiento y an·lisis de riesgo
+library(PerformanceAnalytics) ## Rendimiento y an√°lisis de riesgo
 ```
 
 ## Empleando H2O
 
 ### Iniciando H2O
 
-Parta el ajuste del modelo, se emplear· una combinaciÛn de R y la tecnologÌa H2O. $H_{2}O$ es un producto creado por la compaÒia [H2O.ai](https://www.h2o.ai/) con el objetivo de combinar los principales algoritmos de *machine learning* y aprendizaje estadÌstico con el *Big Data*.
+Parta el ajuste del modelo, se emplear√° una combinaci√≥n de R y la tecnolog√≠a H2O. $H_{2}O$ es un producto creado por la compa√±ia [H2O.ai](https://www.h2o.ai/) con el objetivo de combinar los principales algoritmos de *machine learning* y aprendizaje estad√≠stico con el *Big Data*.
 
 ```{r, message=FALSE}
 ##inicializando H2O
 h2o.init(ip = "localhost",  
          # -1 indica que se empleen todos los cores disponibles. 
          nthreads = -1, 
-        # M·xima memoria disponible para el cluster.
+        # M√°xima memoria disponible para el cluster.
         max_mem_size = "4g")
 h2o.no_progress()  # Turn off progress bars for notebook readability
 ```
@@ -46,7 +46,7 @@ data_path <- "C:/Users/aflorezp/Documents/Prueba BC 2018/procesodeseleccionanali
 df.train <- h2o.importFile(data_path)
 ```
 
-### DescripciÛn de los datos
+### Descripci√≥n de los datos
 
 ```{r}
 # Dimensiones del set de datos 
@@ -63,7 +63,7 @@ h2o.colnames(df.train)
 
 La variable respuesta es *"y_auto_cura"*.
 
-El principal modelo lineal empleado para clasificaciones binarias es la regresiÛn logÌstica, que es el resultado de emplear, en un modelo lineal generalizado, la funciÛn logit como link.
+El principal modelo lineal empleado para clasificaciones binarias es la regresi√≥n log√≠stica, que es el resultado de emplear, en un modelo lineal generalizado, la funci√≥n logit como link.
 
 ```{r}
 # Se comprueba que la variable respuesta es de tipo factor.
@@ -76,13 +76,13 @@ h2o.describe(df.train)
 ```
 
 
-### An·lisis Exploratorio de datos
+### An√°lisis Exploratorio de datos
 
 ```{r}
 h2o.table(df.train[,c("y_auto_cura")])
 ```
 
-## Modelos de clasificaciÛn
+## Modelos de clasificaci√≥n
 
 ```{r}
 # Se define la variable respuesta en (Y) y los predictores en (X).
@@ -95,11 +95,11 @@ x <- setdiff(names(df.train), c(y,"llave"))
 
 
 
-### Modelo 1: RegresiÛn logistica
+### Modelo 1: Regresi√≥n logistica
 
 
 ```{r}
-# Ajuste del modelo y validaciÛn mediente 5-CV para estimar su error. 
+# Ajuste del modelo y validaci√≥n mediente 5-CV para estimar su error. 
 
 modelo_binomial <- h2o.glm(
                     y = y, 
@@ -108,21 +108,21 @@ modelo_binomial <- h2o.glm(
                     family = "binomial", 
                     link = "logit", 
                     standardize = TRUE, 
-                     # Se le pide pÌde al modelo balancear clases
+                     # Se le pide p√≠de al modelo balancear clases
                     balance_classes = TRUE,
                     # Se le pide ignorar columnas con varianza cero (0)
                     ignore_const_cols = TRUE, 
                     # Se especifica que hacer con observaciones incompletas
                     missing_values_handling = "Skip", 
-                    # Se hace una b˙squeda del hiperpar·metro lamba. 
+                    # Se hace una b√∫squeda del hiperpar√°metro lamba. 
                     lambda_search = TRUE, 
-                    # SelecciÛn autom·tica del solver adecuado. 
+                    # Selecci√≥n autom√°tica del solver adecuado. 
                     solver = "AUTO", alpha = 0.95,
-                    # ValidaciÛn cruzada de 5 folds para estimar el error 
+                    # Validaci√≥n cruzada de 5 folds para estimar el error 
                     # del modelo. 
                     seed = 21, ## Semilla aleatoria
-                    nfolds = 5, ## N˙mero de validaciones cruzadas
-                    # Reparto estratificado de las observaciones en la creaciÛn 
+                    nfolds = 5, ## N√∫mero de validaciones cruzadas
+                    # Reparto estratificado de las observaciones en la creaci√≥n 
                     # de las particiones. 
                     fold_assignment = "Stratified",
                     keep_cross_validation_predictions = FALSE, 
@@ -132,7 +132,7 @@ modelo_binomial
 
 
 ```{r}
-# Coeficientes de correlaciÛn de cada uno de los predictores del modelo.
+# Coeficientes de correlaci√≥n de cada uno de los predictores del modelo.
 modelo_binomial@model$coefficients_table
 ```
 
@@ -152,7 +152,7 @@ coeficientes <- as.data.frame(modelo_binomial@model$coefficients_table)
 coeficientes <- coeficientes %>% filter(names != "Intercept") 
 # Se calcula el valor absoluto. 
 coeficientes <- coeficientes %>% mutate(abs_stand_coef = abs(standardized_coefficients)) 
-# Se aÒade una variable con el signo del coeficiente. 
+# Se a√±ade una variable con el signo del coeficiente. 
 coeficientes <- coeficientes %>% mutate(signo = if_else(standardized_coefficients > 0, "Positivo", "Negativo")) 
 # Se grafican los coeficien en orden descendientes de importancia.
 ggplot(data = coeficientes, aes(x = reorder(names, abs_stand_coef), y = abs_stand_coef, fill = signo)) + geom_col() + coord_flip() + labs(title = "Importancia de los predictores en el modelo GLM", x = "Predictor", y = "Valor absoluto coeficiente estandarizado") + theme_bw() + theme(legend.position = "bottom")
@@ -164,7 +164,7 @@ ggplot(data = coeficientes, aes(x = reorder(names, abs_stand_coef), y = abs_stan
 h2o.performance(model = modelo_binomial, train = TRUE)
 ```
 
-## MÈtricas de validaciÛn y validaciÛn cruzada
+## M√©tricas de validaci√≥n y validaci√≥n cruzada
 
 ```{r}
 h2o.performance(model = modelo_binomial, xval = TRUE)
@@ -176,7 +176,7 @@ h2o.performance(model = modelo_binomial, xval = TRUE)
 ```{r}
 # Valores de alpha que se van a comparar. 
 hiperparametros <- list(alpha = c(0, 0.1, 0.5, 0.95, 1)) 
-grid_glm <- h2o.grid( # Algoritmo y par·metros.
+grid_glm <- h2o.grid( # Algoritmo y par√°metros.
                       algorithm = "glm", 
                       family = "binomial", 
                       link = "logit", 
@@ -189,17 +189,17 @@ grid_glm <- h2o.grid( # Algoritmo y par·metros.
                       standardize = TRUE, 
                       missing_values_handling = "Skip",
                       ignore_const_cols = TRUE, 
-                      # Hiperpar·metros. 
+                      # Hiperpar√°metros. 
                       hyper_params = hiperparametros, 
-                      # Tipo de b˙squeda. 
+                      # Tipo de b√∫squeda. 
                       search_criteria = list(strategy = "Cartesian"), 
                       lambda_search = TRUE, 
-                      # SelecciÛn autom·tica del solver adecuado. 
+                      # Selecci√≥n autom√°tica del solver adecuado. 
                       solver = "AUTO", 
-                      # Estrategia de validaciÛn para seleccionar el mejor modelo.
+                      # Estrategia de validaci√≥n para seleccionar el mejor modelo.
                       seed = 21, 
                       nfolds = 10, 
-                      # Reparto estratificado de las observaciones en la creaciÛn 
+                      # Reparto estratificado de las observaciones en la creaci√≥n 
                       # de las particiones. 
                       fold_assignment = "Stratified",
                       keep_cross_validation_predictions = FALSE,
@@ -232,7 +232,7 @@ lb <- aml@leaderboard
 print(lb)
 ```
 
-### ExploraciÛn de ensamble
+### Exploraci√≥n de ensamble
 
 ```{r}
 # Get model ids for all models in the AutoML Leaderboard
